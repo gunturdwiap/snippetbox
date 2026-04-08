@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"html/template"
@@ -31,6 +32,7 @@ type application struct {
 	sessionManager *scs.SessionManager
 }
 
+// TODO: add  tls cert and timeouts
 func main() {
 	var cfg config
 	flag.StringVar(&cfg.addr, "addr", getEnv("PORT", ":4000"), "HTTP network address")
@@ -59,6 +61,7 @@ func main() {
 	sessionManager := scs.New()
 	sessionManager.Store = mysqlstore.New(db)
 	sessionManager.Lifetime = 12 * time.Hour
+	sessionManager.Cookie.Secure = true
 
 	app := &application{
 		cfg:            &cfg,
@@ -69,8 +72,20 @@ func main() {
 		sessionManager: sessionManager,
 	}
 
+	srv := http.Server{
+		Addr:     cfg.addr,
+		Handler:  app.routes(),
+		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError),
+		TLSConfig: &tls.Config{
+			CurvePreferences: []tls.CurveID{tls.X25519, tls.CurveP256},
+		},
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
 	logger.Info("starting server", slog.String("addr", cfg.addr))
-	err = http.ListenAndServe(cfg.addr, app.routes())
+	err = srv.ListenAndServeTLS("./tls/cert.pem", "./tls/key.pem")
 	logger.Error(err.Error())
 	os.Exit(1)
 }
