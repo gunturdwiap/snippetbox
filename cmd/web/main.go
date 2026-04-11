@@ -18,9 +18,8 @@ import (
 )
 
 type config struct {
-	addr      string
-	dsn       string
-	staticDir string
+	addr string
+	dsn  string
 }
 
 type application struct {
@@ -33,15 +32,13 @@ type application struct {
 	sessionManager *scs.SessionManager
 }
 
-// TODO: add  tls cert and timeouts
 func main() {
 	var cfg config
 	flag.StringVar(&cfg.addr, "addr", getEnv("PORT", ":4000"), "HTTP network address")
-	flag.StringVar(&cfg.staticDir, "static-dir", getEnv("STATIC_DIR", "./ui/static"), "Path to static assets")
 	flag.StringVar(&cfg.dsn, "dsn", getEnv("DB_DSN", "web:pass@/snippetbox?parseTime=true"), "MySQL data source name")
 	flag.Parse()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 	}))
 
