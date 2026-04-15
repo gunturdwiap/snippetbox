@@ -18,8 +18,9 @@ import (
 )
 
 type config struct {
-	addr string
-	dsn  string
+	addr  string
+	dsn   string
+	debug bool
 }
 
 type application struct {
@@ -36,6 +37,7 @@ func main() {
 	var cfg config
 	flag.StringVar(&cfg.addr, "addr", getEnv("PORT", ":4000"), "HTTP network address")
 	flag.StringVar(&cfg.dsn, "dsn", getEnv("DB_DSN", "web:pass@/snippetbox?parseTime=true"), "MySQL data source name")
+	flag.BoolVar(&cfg.debug, "debug", false, "Debug mode")
 	flag.Parse()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
