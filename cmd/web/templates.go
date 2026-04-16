@@ -13,6 +13,7 @@ import (
 type templateData struct {
 	CurrentYear     int
 	Snippet         models.Snippet
+	User            models.User
 	Snippets        []models.Snippet
 	Form            any
 	Flash           string
