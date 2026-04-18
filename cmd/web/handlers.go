@@ -30,6 +30,13 @@ type userLoginForm struct {
 	validator.Validator `form:"-"`
 }
 
+type accountPasswordUpdateForm struct {
+	CurrentPassword     string `form:"current_password"`
+	NewPassword         string `form:"new_password"`
+	ConfirmNewPassword  string `form:"confirm_new_password"`
+	validator.Validator `form:"-"`
+}
+
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	snippets, err := app.snippets.Latest()
 	if err != nil {
@@ -246,4 +253,44 @@ func (app *application) accountView(w http.ResponseWriter, r *http.Request) {
 
 	data.User = user
 	app.render(w, r, http.StatusOK, "account.tmpl.html", data)
+}
+
+func (app *application) accountPasswordUpdate(w http.ResponseWriter, r *http.Request) {
+	data := app.newTemplateData(r)
+	data.Form = accountPasswordUpdateForm{}
+	app.render(w, r, http.StatusOK, "password.tmpl.html", data)
+}
+
+func (app *application) accountPasswordUpdatePost(w http.ResponseWriter, r *http.Request) {
+	var form accountPasswordUpdateForm
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusUnprocessableEntity)
+		return
+	}
+
+	form.CheckField(validator.NotBlank(form.CurrentPassword), "current_password", "This field is required")
+	form.CheckField(validator.MinChars(form.CurrentPassword, 8), "current_password", "This field must be at least 8 characters long")
+	form.CheckField(validator.NotBlank(form.NewPassword), "new_password", "This field is required")
+	form.CheckField(validator.MinChars(form.NewPassword, 8), "new_password", "This field must be at least 8 characters long")
+	form.CheckField(validator.NotBlank(form.ConfirmNewPassword), "confirm_new_password", "This field is required")
+	form.CheckField(validator.MinChars(form.ConfirmNewPassword, 8), "confirm_new_password", "This field must be at least 8 characters long")
+	form.CheckField(form.NewPassword == form.ConfirmNewPassword, "confirm_new_password", "Password do not match")
+	if !form.Valid() {
+		data := app.newTemplateData(r)
+		data.Form = form
+		app.render(w, r, http.StatusUnprocessableEntity, "password.tmpl.html", data)
+		return
+	}
+
+	id := app.sessionManager.GetInt(r.Context(), "authenticatedUserID")
+	err = app.users.PasswordUpdate(id, form.CurrentPassword, form.NewPassword)
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+
+	app.sessionManager.Put(r.Context(), "flash", "Password successfully changed")
+
+	http.Redirect(w, r, fmt.Sprintf("/account/password/update"), http.StatusSeeOther)
 }
